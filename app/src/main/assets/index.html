@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>TERMINAL · CARD DUMP PARSER</title>
+  <!-- FontAwesome for standard Icons in Main UI -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #050505;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Courier New', monospace;
+      padding: 12px;
+      color: #fff;
+    }
+
+    /* Fullscreen Matrix Canvas Background for Main UI */
+    #matrix-canvas-main {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      opacity: 0.35; 
+    }
+
+    #app {
+      width: 100%;
+      max-width: 900px; 
+      margin: 0 auto;
+      z-index: 1;
+    }
+
+    /* terminal glass panel */
+    .panel {
+      background: rgba(12, 12, 12, 0.9); 
+      border: 1px solid #333;
+      border-radius: 16px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+      padding: 2.5rem 2rem;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* type selection screen */
+    .type-selector {
+      text-align: center;
+    }
+
+    .type-selector h1 {
+      color: #fff;
+      font-weight: 800;
+      font-size: 2.2rem;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-bottom: 2.5rem;
+      border-bottom: 2px solid #333;
+      padding-bottom: 1.5rem;
+      text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      margin-top: 1.5rem;
+    }
+
+    /* Sleek Home Page Buttons */
+    .card-type-btn {
+      background: linear-gradient(145deg, #1a1a1a 0%, #0a0a0a 100%);
+      border: 1px solid #333;
+      color: #ccc;
+      font-size: 2rem;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 1.5rem 0;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-transform: uppercase;
+      letter-spacing: 6px;
+      box-shadow: 0 8px 15px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    .card-type-btn:hover {
+      border-color: #0f0;
+      color: #0f0;
+      background: linear-gradient(145deg, #222 0%, #111 100%);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.15);
+      transform: translateY(-2px);
+    }
+
+    .card-type-btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+
+    /* terminal workspace */
+    .terminal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid #333;
+      padding-bottom: 1rem;
+    }
+
+    .back-link {
+      background: #111;
+      border: 1px solid #444;
+      color: #aaa;
+      padding: 0.5rem 1.2rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .back-link:hover {
+      background: #222;
+      color: #fff;
+      border-color: #666;
+    }
+
+    .selected-type-badge {
+      background: #111;
+      padding: 0.5rem 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #333;
+      border-right: 4px solid #0f0;
+      font-weight: bold;
+      color: #0f0;
+      letter-spacing: 2px;
+    }
+
+    /* Address Inputs Area (Fixed Overflow) */
+    .address-panel {
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid #222;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .address-panel-title {
+      font-size: 0.8rem;
+      color: #888;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .address-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .input-group label {
+      font-size: 0.7rem;
+      color: #aaa;
+      letter-spacing: 1px;
+    }
+
+    .input-group input {
+      width: 100%;
+      min-width: 0; /* Prevents input from breaking grid */
+      box-sizing: border-box;
+      background: #0a0a0a;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 0.6rem 0.8rem;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .input-group input::placeholder {
+      color: #444;
+      font-style: italic;
+    }
+
+    .input-group input:focus {
+      border-color: #0f0;
+      box-shadow: 0 0 8px rgba(0, 255, 0, 0.2);
+    }
+
+    /* Premium Dump Textarea */
+    .dump-area {
+      width: 100%;
+      box-sizing: border-box;
+      background: #000;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 1.1rem;
+      line-height: 1.6;
+      color: #0f0;
+      resize: vertical;
+      min-height: 150px;
+      outline: none;
+      caret-color: #0f0;
+      box-shadow: inset 0 0 20px rgba(0,0,0,1);
+      transition: all 0.2s;
+    }
+
+    .dump-area::placeholder {
+      color: #333;
+      font-style: italic;
+    }
+
+    .dump-area:focus {
+      border-color: #0f0;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.1), inset 0 0 10px rgba(0, 255, 0, 0.05);
+    }
+
+    /* action bar */
+    .action-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin: 1.5rem 0 1.5rem;
+      align-items: center;
+      width: 100%;
+    }
+
+    /* Updated Parse Button */
+    .primary-btn {
+      background: linear-gradient(145deg, #111 0%, #000 100%);
+      border: 1px solid #0f0;
+      border-radius: 12px;
+      padding: 1rem 2.5rem;
+      font-family: inherit;
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #0f0;
+      cursor: pointer;
+      transition: all 0.2s;
+      flex: 1 1 auto;
+      letter-spacing: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-transform: uppercase;
+    }
+
+    .primary-btn:hover {
+      background: #0f0;
+      color: #000;
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+    }
+
+    .primary-btn:active {
+      transform: translateY(2px);
+      box-shadow: none;
+    }
+
+    .counter-badge {
+      background: #111;
+      border-radius: 12px;
+      padding: 1rem 1.8rem;
+      font-size: 1.2rem;
+      border: 1px solid #333;
+      color: #aaa;
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    /* preview scroll area */
+    .preview-scroll {
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 16px;
+      border: 1px solid #222;
+      padding: 1.5rem;
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 0 0 1.5rem;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Grid layout for Main UI Preview */
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      width: 100%;
+    }
+    @media (max-width: 768px) {
+      .preview-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Exported File Card Styling Applied to Main UI */
+    .card {
+      background: linear-gradient(145deg, #1e1e1e 0%, #0d0d0d 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 18px;
+      position: relative;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.9);
+      transition: transform 0.2s;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      box-sizing: border-box;
+      width: 100%;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #555;
+    }
+    .index-badge {
+      position: absolute;
+      top: -12px;
+      left: -12px;
+      background: #fff;
+      color: #000;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      border: 3px solid #000;
+      z-index: 2;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+    .top-right-icon {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      color: #cca300;
+      background: #222;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid #333;
+    }
+    .card-subtitle {
+      font-size: 8px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+    .name-row {
+      font-size: 14px;
+      font-weight: 900;
+      font-style: italic;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #f1f1f1;
+    }
+    .number-row {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+    }
+    .bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .info-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .info-label {
+      font-size: 8px;
+      color: #777;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .info-val {
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #eee;
+    }
+    .copy-btn {
+      color: #d4af37;
+      cursor: pointer;
+      font-size: 14px;
+      transition: color 0.2s, transform 0.1s;
+      padding: 2px;
+    }
+    .copy-btn:hover {
+      color: #fff;
+      transform: scale(1.15);
+    }
+    .copy-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* Updated Export Button */
+    .export-btn {
+      width: 100%;
+      background: linear-gradient(145deg, #1a1a1a 0%, #050505 100%);
+      border: 1px solid #d4af37; 
+      border-radius: 12px;
+      padding: 1.2rem;
+      font-size: 1.8rem;
+      font-family: inherit;
+      font-weight: bold;
+      color: #d4af37;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      box-sizing: border-box;
+    }
+
+    .export-btn:hover:not(:disabled) {
+      background: #d4af37;
+      color: #000;
+      box-shadow: 0 0 25px rgba(212, 175, 55, 0.3);
+    }
+
+    .export-btn:active:not(:disabled) {
+      transform: translateY(2px);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.3;
+      border-color: #444;
+      color: #444;
+      cursor: not-allowed;
+    }
+
+    /* scrollbar */
+    .preview-scroll::-webkit-scrollbar {
+      width: 8px;
+    }
+    .preview-scroll::-webkit-scrollbar-track {
+      background: #111;
+      border-radius: 10px;
+    }
+    .preview-scroll::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 10px;
+    }
+    .preview-scroll::-webkit-scrollbar-thumb:hover {
+      background: #0f0;
+    }
+
+    /* mobile fine */
+    @media (max-width: 500px) {
+      .panel { padding: 1.5rem 1rem; }
+      .card-type-btn { font-size: 1.5rem; letter-spacing: 2px; padding: 1.2rem 0; }
+      .primary-btn { font-size: 1.2rem; padding: 0.8rem 1.2rem; }
+      .counter-badge { font-size: 1rem; padding: 0.8rem 1rem; }
+      .export-btn { font-size: 1.4rem; }
+      .number-row { font-size: 14px; letter-spacing: 0px; }
+      .type-selector h1 { font-size: 1.6rem; }
+      .address-grid { grid-template-columns: 1fr 1fr; } /* Address grid to 2 columns on mobile */
+    }
+  </style>
+</head>
+<body>
+
+<!-- Main UI Matrix Canvas -->
+<canvas id="matrix-canvas-main"></canvas>
+
+<div id="app">
+  <!-- TYPE SELECTOR (home) -->
+  <div id="typeSelector" class="panel type-selector">
+    <h1><i class="fa-solid fa-terminal" style="color:#0f0; margin-right:10px;"></i> CARD DUMP PARSER</h1>
+    <div class="button-group">
+      <button class="card-type-btn" data-type="VISA"><i class="fa-brands fa-cc-visa"></i> VISA</button>
+      <button class="card-type-btn" data-type="MASTERCARD"><i class="fa-brands fa-cc-mastercard"></i> MASTERCARD</button>
+      <button class="card-type-btn" data-type="UNIONPAY"><i class="fa-regular fa-credit-card"></i> UNIONPAY</button>
+    </div>
+    <div style="margin-top: 2.5rem; color: #666; font-size: 0.9rem; letter-spacing: 1px;">▼ SELECT CARD TYPE TO INITIALIZE</div>
+  </div>
+
+  <!-- TERMINAL WORKSPACE (hidden initially) -->
+  <div id="terminalWorkspace" class="panel" style="display: none;">
+    <div class="terminal-header">
+      <button class="back-link" id="backToTypeBtn"><i class="fa-solid fa-arrow-left"></i> CHANGE TYPE</button>
+      <div class="selected-type-badge" id="selectedTypeDisplay">VISA</div>
+    </div>
+
+    <!-- Address Inputs Box -->
+    <div class="address-panel">
+      <div class="address-panel-title">
+        <i class="fa-solid fa-map-location-dot"></i> BILLING ADDRESS (OPTIONAL)
+      </div>
+      <div class="address-grid">
+        <div class="input-group">
+          <label>COUNTRY</label>
+          <input type="text" id="inpCountry" placeholder="e.g. South Korea">
+        </div>
+        <div class="input-group">
+          <label>ADDRESS LINE 1</label>
+          <input type="text" id="inpAddress" placeholder="e.g. 123 Main St">
+        </div>
+        <div class="input-group">
+          <label>CITY</label>
+          <input type="text" id="inpCity" placeholder="e.g. Seoul">
+        </div>
+        <div class="input-group">
+          <label>STATE / PROVINCE</label>
+          <input type="text" id="inpState" placeholder="e.g. Gyeonggi-do">
+        </div>
+        <div class="input-group">
+          <label>ZIP CODE</label>
+          <input type="text" id="inpZip" placeholder="e.g. 03000">
+        </div>
+      </div>
+    </div>
+
+    <textarea id="dumpInput" class="dump-area" placeholder="> PASTE RAW DUMP LINES HERE...&#10;> Live | 5154625837165510|03|2031|599 | [BIN ...]&#10;> 4266843157701883 06/2031 244&#10;> Awaiting input..."></textarea>
+
+    <div class="action-bar">
+      <button class="primary-btn" id="parseBtn"><i class="fa-solid fa-microchip"></i> EXECUTE PARSE</button>
+      <span class="counter-badge" id="cardCounter">0 CARDS</span>
+    </div>
+
+    <!-- preview list -->
+    <div class="preview-scroll" id="previewList">
+      <div style="color: #444; text-align: center; padding: 2rem; font-family: 'SF Mono', monospace; font-size: 1.2rem;">
+        <i class="fa-solid fa-satellite-dish" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>
+        NO DATA DETECTED
+      </div>
+    </div>
+
+    <!-- Export Button -->
+    <button class="export-btn" id="exportBtn" disabled><i class="fa-solid fa-file-code"></i> EXPORT HTML DATA</button>
+  </div>
+</div>
+
+<script>
+  // ----- Main UI Copy Function -----
+  window.copyTextUI = function(text, iconElement) {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "absolute";
+    textArea.style.left = "-999999px";
+    
+    document.body.appendChild(textArea);
+    textArea.select();
+    
+    try {
+      document.execCommand('copy');
+      
+      iconElement.classList.remove('fa-copy', 'fa-regular');
+      iconElement.classList.add('fa-check', 'fa-solid');
+      iconElement.style.color = '#00ff00';
+      
+      setTimeout(() => {
+        iconElement.classList.add('fa-copy', 'fa-regular');
+        iconElement.classList.remove('fa-check', 'fa-solid');
+        iconElement.style.color = ''; 
+      }, 1500);
+    } catch (err) {
+      console.error('Copy failed', err);
+    }
+    
+    document.body.removeChild(textArea);
+  };
+
+  (function() {
+    // ----- CARDINAL DATA -----
+    const firstNames = [
+      "James", "Olivia", "Daniel", "Sophia", "Michael", "Emma", "William", "Ava", "Alexander", "Mia",
+      "Ethan", "Charlotte", "Benjamin", "Amelia", "Jacob", "Harper", "Noah", "Evelyn", "Logan", "Abigail",
+      "Lucas", "Emily", "Matthew", "Elizabeth", "Jackson", "Sofia", "David", "Avery", "Oliver", "Ella",
+      "Jayden", "Madison", "Elijah", "Scarlett", "Aiden", "Victoria", "Samuel", "Grace", "Joseph", "Chloe",
+      "Henry", "Penelope", "John", "Riley", "Owen", "Zoey", "Carter", "Lillian", "Gabriel", "Addison",
+      "Anthony", "Lucy", "Joshua", "Hannah", "Andrew", "Audrey", "Thomas", "Maya"
+    ];
+    const lastNames = [
+      "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez",
+      "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas", "Taylor", "Moore", "Jackson", "Martin",
+      "Lee", "Perez", "Thompson", "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+      "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen", "Hill", "Flores",
+      "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera", "Campbell", "Mitchell", "Carter", "Roberts",
+      "Gomez", "Phillips", "Evans", "Turner", "Diaz", "Parker", "Cruz", "Edwards"
+    ];
+
+    // ----- APP STATE -----
+    let currentType = 'VISA';
+    let parsedCards = [];
+    let nameFirstNameLen = firstNames.length;
+    let nameLastNameLen = lastNames.length;
+    const namePoolSize = nameFirstNameLen * nameLastNameLen;
+
+    // ----- DOM elements -----
+    const typeSelectorDiv = document.getElementById('typeSelector');
+    const terminalDiv = document.getElementById('terminalWorkspace');
+    const selectedTypeSpan = document.getElementById('selectedTypeDisplay');
+    const backBtn = document.getElementById('backToTypeBtn');
+    const typeBtns = document.querySelectorAll('.card-type-btn');
+    const dumpTextarea = document.getElementById('dumpInput');
+    const parseBtn = document.getElementById('parseBtn');
+    const cardCounterSpan = document.getElementById('cardCounter');
+    const previewDiv = document.getElementById('previewList');
+    const exportBtn = document.getElementById('exportBtn');
+
+    function formatCardNumber(numStr) {
+      return numStr.replace(/\d{4}(?=\d)/g, '$& ');
+    }
+
+    function generateNameFromIndex(idx) {
+      if (idx >= namePoolSize) {
+        const baseFirst = firstNames[idx % nameFirstNameLen];
+        const baseLast = lastNames[Math.floor(idx / nameFirstNameLen) % nameLastNameLen];
+        return `${baseFirst} ${baseLast} ${Math.floor(idx / namePoolSize) + 1}`;
+      }
+      const firstIdx = idx % nameFirstNameLen;
+      const lastIdx = Math.floor(idx / nameFirstNameLen) % nameLastNameLen;
+      return `${firstNames[firstIdx]} ${lastNames[lastIdx]}`;
+    }
+
+    function extractCardsFromDump(rawText) {
+      const lines = rawText.split(/\r?\n/);
+      const cards = [];
+
+      for (let line of lines) {
+        line = line.trim();
+        if (line.length === 0) continue;
+
+        const cardMatch = line.match(/\d{13,16}/);
+        if (!cardMatch) continue;
+        const cardNumber = cardMatch[0];
+        const cardIdx = line.indexOf(cardNumber);
+        if (cardIdx === -1) continue; 
+
+        const afterCard = line.slice(cardIdx + cardNumber.length);
+        const expiryRegex = /(\d{1,2})[\/|](\d{2,4})/;
+        const expiryMatch = afterCard.match(expiryRegex);
+        if (!expiryMatch) continue;
+
+        let monthRaw = expiryMatch[1];
+        let yearRaw = expiryMatch[2];
+
+        let month = monthRaw.padStart(2, '0');
+        let year = yearRaw.length === 4 ? yearRaw.slice(-2) : yearRaw;
+        const expiry = `${month}/${year}`;
+
+        const expiryEndIndex = afterCard.indexOf(expiryMatch[0]) + expiryMatch[0].length;
+        const afterExpiry = afterCard.slice(expiryEndIndex);
+        const cvvMatch = afterExpiry.match(/\b\d{3,4}\b/);
+        let cvv = cvvMatch ? cvvMatch[0] : '';
+
+        if (!cvv) {
+          const fallbackCvv = afterExpiry.match(/\d{3,4}/);
+          cvv = fallbackCvv ? fallbackCvv[0] : '';
+        }
+
+        cards.push({
+          cardNumber,
+          expiry,
+          cvv: cvv || '???',
+        });
+      }
+      return cards;
+    }
+
+    // ----- Updated Main UI RENDER preview -----
+    function renderPreview() {
+      if (parsedCards.length === 0) {
+        previewDiv.innerHTML = '<div style="color: #444; text-align: center; padding: 2rem; font-family: \'SF Mono\', monospace; font-size: 1.2rem;"><i class="fa-solid fa-satellite-dish" style="font-size: 2rem; margin-bottom: 10px; display: block;"></i>NO DATA DETECTED</div>';
+        cardCounterSpan.innerText = '0 CARDS';
+        exportBtn.disabled = true;
+        return;
+      }
+
+      let html = '<div class="preview-grid">';
+      parsedCards.forEach((card, idx) => {
+        html += `
+        <div class="card">
+          <div class="index-badge">${idx + 1}</div>
+          <div class="top-right-icon">
+            <i class="fa-solid fa-signal"></i>
+          </div>
+          <div class="card-subtitle">VIRTUAL CARD DATA</div>
+          <div class="name-row">
+            ${card.name} 
+            <i class="fa-regular fa-copy copy-btn" title="Copy Name" onclick="window.copyTextUI('${card.name}', this)"></i>
+          </div>
+          <div class="number-row">
+            ${formatCardNumber(card.cardNumber)} 
+            <i class="fa-regular fa-copy copy-btn" title="Copy Number" onclick="window.copyTextUI('${card.cardNumber}', this)"></i>
+          </div>
+          <div class="bottom-row">
+            <div class="info-group">
+              <span class="info-label">EXPIRY</span>
+              <span class="info-val">
+                ${card.expiry} 
+                <i class="fa-regular fa-copy copy-btn" title="Copy Expiry" onclick="window.copyTextUI('${card.expiry}', this)"></i>
+              </span>
+            </div>
+            <div class="info-group">
+              <span class="info-label">CVV</span>
+              <span class="info-val">
+                ${card.cvv} 
+                <i class="fa-regular fa-copy copy-btn" title="Copy CVV" onclick="window.copyTextUI('${card.cvv}', this)"></i>
+              </span>
+            </div>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+      
+      previewDiv.innerHTML = html;
+      cardCounterSpan.innerText = `${parsedCards.length} CARD${parsedCards.length !== 1 ? 'S' : ''}`;
+      exportBtn.disabled = false;
+    }
+
+    function performParse() {
+      const dump = dumpTextarea.value;
+      const rawCards = extractCardsFromDump(dump);
+
+      if (rawCards.length === 0) {
+        parsedCards = [];
+        renderPreview();
+        return;
+      }
+
+      const namedCards = rawCards.map((c, idx) => {
+        return {
+          ...c,
+          name: generateNameFromIndex(idx)
+        };
+      });
+
+      parsedCards = namedCards;
+      renderPreview();
+    }
+
+    // Helper to escape values for inline onclick handler
+    function escapeForJS(str) {
+      return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // ----- EXPORT to HTML file -----
+    function exportToHtml() {
+      if (parsedCards.length === 0) return;
+
+      // Extract Address Data
+      const valCountry = document.getElementById('inpCountry').value.trim();
+      const valAddress = document.getElementById('inpAddress').value.trim();
+      const valCity = document.getElementById('inpCity').value.trim();
+      const valState = document.getElementById('inpState').value.trim();
+      const valZip = document.getElementById('inpZip').value.trim();
+
+      let addressSectionHtml = '';
+      if (valCountry || valAddress || valCity || valState || valZip) {
+        addressSectionHtml += `
+        <div class="address-banner">
+          <div class="address-banner-title"><i class="fa-solid fa-map-location-dot"></i> BILLING ADDRESS</div>
+          <div class="address-banner-grid">`;
+        
+        if (valCountry) {
+          addressSectionHtml += `
+            <div class="address-item">
+              <span class="address-label">COUNTRY</span>
+              <span class="address-val">${valCountry} <i class="fa-regular fa-copy copy-btn" title="Copy Country" onclick="copyText('${escapeForJS(valCountry)}', this)"></i></span>
+            </div>`;
+        }
+        if (valAddress) {
+          addressSectionHtml += `
+            <div class="address-item">
+              <span class="address-label">ADDRESS LINE 1</span>
+              <span class="address-val">${valAddress} <i class="fa-regular fa-copy copy-btn" title="Copy Address" onclick="copyText('${escapeForJS(valAddress)}', this)"></i></span>
+            </div>`;
+        }
+        if (valCity) {
+          addressSectionHtml += `
+            <div class="address-item">
+              <span class="address-label">CITY</span>
+              <span class="address-val">${valCity} <i class="fa-regular fa-copy copy-btn" title="Copy City" onclick="copyText('${escapeForJS(valCity)}', this)"></i></span>
+            </div>`;
+        }
+        if (valState) {
+          addressSectionHtml += `
+            <div class="address-item">
+              <span class="address-label">STATE / PROVINCE</span>
+              <span class="address-val">${valState} <i class="fa-regular fa-copy copy-btn" title="Copy State" onclick="copyText('${escapeForJS(valState)}', this)"></i></span>
+            </div>`;
+        }
+        if (valZip) {
+          addressSectionHtml += `
+            <div class="address-item">
+              <span class="address-label">ZIP CODE</span>
+              <span class="address-val">${valZip} <i class="fa-regular fa-copy copy-btn" title="Copy Zip" onclick="copyText('${escapeForJS(valZip)}', this)"></i></span>
+            </div>`;
+        }
+
+        addressSectionHtml += `
+          </div>
+        </div>`;
+      }
+
+      let htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${currentType} CARDS DATA</title>
+  <!-- FontAwesome for standard Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #050505;
+      color: #fff;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      overflow-x: hidden;
+    }
+    
+    /* Fullscreen Matrix Canvas Background */
+    #matrix-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      opacity: 0.55;
+    }
+
+    /* Top Header Styled Like The Image */
+    .header {
+      text-align: center;
+      padding: 12px;
+      font-size: 2.2rem;
+      font-weight: 900;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      border-top: 3px solid #fff;
+      border-bottom: 3px solid #fff;
+      background: rgba(0,0,0,0.85);
+      margin-top: 20px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+    }
+
+    .container {
+      padding: 30px 20px;
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    /* Address Section Styling (Fixed Overflow) */
+    .address-banner {
+      background: linear-gradient(145deg, #1e1e1e 0%, #0d0d0d 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.9);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .address-banner-title {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: #0f0; 
+      margin-bottom: 15px;
+      letter-spacing: 2px;
+      border-bottom: 1px dashed #333;
+      padding-bottom: 10px;
+    }
+    .address-banner-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .address-item {
+      display: flex;
+      flex-direction: column;
+      background: #111;
+      padding: 10px 15px;
+      border-radius: 8px;
+      border: 1px solid #222;
+      min-width: 0; /* Let flex item shrink */
+      flex: 1 1 auto;
+      box-sizing: border-box;
+      word-wrap: break-word;
+    }
+    .address-label {
+      font-size: 10px;
+      color: #888;
+      font-weight: bold;
+      letter-spacing: 1px;
+      margin-bottom: 5px;
+    }
+    .address-val {
+      font-size: 15px;
+      color: #fff;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+      word-break: break-word; /* Allows long text to break safely */
+    }
+
+    /* Grid layout: 4 columns for desktop, 2 for mobile */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 30px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    @media (max-width: 992px) {
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+      }
+    }
+
+    /* Card Styling */
+    .card {
+      background: linear-gradient(145deg, #1e1e1e 0%, #0d0d0d 100%);
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 18px;
+      position: relative;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.9);
+      transition: transform 0.2s;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: #555;
+    }
+
+    /* Circle Badge at Top Left */
+    .index-badge {
+      position: absolute;
+      top: -12px;
+      left: -12px;
+      background: #fff;
+      color: #000;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 16px;
+      border: 3px solid #000;
+      z-index: 2;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+    }
+
+    /* Signal Icon Top Right */
+    .top-right-icon {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      color: #cca300;
+      background: #222;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      border: 1px solid #333;
+    }
+
+    /* Small Bank Label */
+    .card-subtitle {
+      font-size: 8px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    /* Card Holder Name */
+    .name-row {
+      font-size: 14px;
+      font-weight: 900;
+      font-style: italic;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #f1f1f1;
+    }
+
+    /* Card Number */
+    .number-row {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #fff;
+    }
+    @media (max-width: 500px) {
+      .number-row { font-size: 14px; letter-spacing: 0px; }
+    }
+
+    /* Bottom Information (Expiry & CVV) */
+    .bottom-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .info-group {
+      display: flex;
+      flex-direction: column;
+    }
+    .info-label {
+      font-size: 8px;
+      color: #777;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      font-weight: 800;
+      letter-spacing: 1px;
+    }
+    .info-val {
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #eee;
+    }
+
+    /* Copy Button (Gold color) */
+    .copy-btn {
+      color: #d4af37;
+      cursor: pointer;
+      font-size: 14px;
+      transition: color 0.2s, transform 0.1s;
+      padding: 2px;
+    }
+    .copy-btn:hover {
+      color: #fff;
+      transform: scale(1.15);
+    }
+    .copy-btn:active {
+      transform: scale(0.9);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Matrix Animation Element -->
+  <canvas id="matrix-canvas"></canvas>
+  
+  <div class="header">${currentType}</div>
+  
+  <div class="container">
+    
+    <!-- Render Address Section if values exist -->
+    ${addressSectionHtml}
+
+    <div class="grid">`;
+
+      parsedCards.forEach((card, idx) => {
+        htmlContent += `
+      <div class="card">
+        <div class="index-badge">${idx + 1}</div>
+        
+        <div class="top-right-icon">
+          <i class="fa-solid fa-signal"></i>
+        </div>
+        
+        <div class="card-subtitle">VIRTUAL CARD DATA</div>
+        
+        <div class="name-row">
+          ${card.name} 
+          <i class="fa-regular fa-copy copy-btn" title="Copy Name" onclick="copyText('${escapeForJS(card.name)}', this)"></i>
+        </div>
+        
+        <div class="number-row">
+          ${formatCardNumber(card.cardNumber)} 
+          <i class="fa-regular fa-copy copy-btn" title="Copy Number" onclick="copyText('${escapeForJS(card.cardNumber)}', this)"></i>
+        </div>
+        
+        <div class="bottom-row">
+          <div class="info-group">
+            <span class="info-label">EXPIRY</span>
+            <span class="info-val">
+              ${card.expiry} 
+              <i class="fa-regular fa-copy copy-btn" title="Copy Expiry" onclick="copyText('${escapeForJS(card.expiry)}', this)"></i>
+            </span>
+          </div>
+          <div class="info-group">
+            <span class="info-label">CVV</span>
+            <span class="info-val">
+              ${card.cvv} 
+              <i class="fa-regular fa-copy copy-btn" title="Copy CVV" onclick="copyText('${escapeForJS(card.cvv)}', this)"></i>
+            </span>
+          </div>
+        </div>
+      </div>`;
+      });
+
+      htmlContent += `
+    </div>
+  </div>
+
+  <script>
+    // Copy Functionality using fallback method for secure local file viewing
+    function copyText(text, iconElement) {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      // Make text area invisible
+      textArea.style.position = "absolute";
+      textArea.style.left = "-999999px";
+      
+      document.body.appendChild(textArea);
+      textArea.select();
+      
+      try {
+        document.execCommand('copy');
+        
+        // Visual feedback logic (turn green checkmark)
+        iconElement.classList.remove('fa-copy', 'fa-regular');
+        iconElement.classList.add('fa-check', 'fa-solid');
+        iconElement.style.color = '#00ff00';
+        
+        setTimeout(() => {
+          // Revert back after 1.5 seconds
+          iconElement.classList.add('fa-copy', 'fa-regular');
+          iconElement.classList.remove('fa-check', 'fa-solid');
+          iconElement.style.color = ''; // Reverts to CSS default gold
+        }, 1500);
+      } catch (err) {
+        console.error('Copy failed', err);
+      }
+      
+      document.body.removeChild(textArea);
+    }
+
+    // Classic Matrix Background Effect Logic
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas(); // Initial call
+    
+    const chars = '01'; // Binary characters
+    const fontSize = 16;
+    let drops = [];
+    
+    // Initialize drops array
+    function initDrops() {
+      const columns = Math.floor(canvas.width / fontSize) + 1;
+      drops = [];
+      for (let x = 0; x < columns; x++) {
+        drops[x] = Math.random() * canvas.height; 
+      }
+    }
+    initDrops();
+    window.addEventListener('resize', initDrops);
+    
+    function drawMatrix() {
+      // Semi-transparent black to create fade effect
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      ctx.fillStyle = '#0F0'; // Matrix Green
+      ctx.font = fontSize + 'px monospace';
+
+      for (let i = 0; i < drops.length; i++) {
+        const text = chars.charAt(Math.floor(Math.random() * chars.length));
+        ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+        
+        // Reset drop to top randomly
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.98) {
+          drops[i] = 0;
+        }
+        drops[i]++;
+      }
+    }
+    
+    // Loop the animation
+    setInterval(drawMatrix, 50);
+  <\/script>
+</body>
+</html>`;
+
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `cards_${currentType.toLowerCase()}_${new Date().toISOString().slice(0,10)}.html`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+
+    function goToTypeSelection() {
+      terminalDiv.style.display = 'none';
+      typeSelectorDiv.style.display = 'block';
+      dumpTextarea.value = '';
+      parsedCards = [];
+      document.getElementById('inpCountry').value = '';
+      document.getElementById('inpAddress').value = '';
+      document.getElementById('inpCity').value = '';
+      document.getElementById('inpState').value = '';
+      document.getElementById('inpZip').value = '';
+      renderPreview(); 
+    }
+
+    function switchToTerminal(type) {
+      currentType = type;
+      selectedTypeSpan.innerText = type;
+      dumpTextarea.value = '';
+      parsedCards = [];
+      document.getElementById('inpCountry').value = '';
+      document.getElementById('inpAddress').value = '';
+      document.getElementById('inpCity').value = '';
+      document.getElementById('inpState').value = '';
+      document.getElementById('inpZip').value = '';
+      renderPreview();
+      typeSelectorDiv.style.display = 'none';
+      terminalDiv.style.display = 'block';
+      dumpTextarea.focus();
+    }
+
+    typeBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        // get type from closest button (in case icon is clicked)
+        const type = e.target.closest('.card-type-btn').getAttribute('data-type');
+        switchToTerminal(type);
+      });
+    });
+
+    backBtn.addEventListener('click', goToTypeSelection);
+    parseBtn.addEventListener('click', () => { performParse(); });
+    exportBtn.addEventListener('click', exportToHtml);
+
+    dumpTextarea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        performParse();
+      }
+    });
+
+    // ----- MAIN UI MATRIX BACKGROUND EFFECT -----
+    const mainCanvas = document.getElementById('matrix-canvas-main');
+    const mainCtx = mainCanvas.getContext('2d');
+    
+    function resizeMainCanvas() {
+      mainCanvas.width = window.innerWidth;
+      mainCanvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeMainCanvas);
+    resizeMainCanvas();
+    
+    const charsStr = '01';
+    const fSize = 16;
+    let mainDrops = [];
+    
+    function initMainDrops() {
+      const columns = Math.floor(mainCanvas.width / fSize) + 1;
+      mainDrops = [];
+      for (let x = 0; x < columns; x++) {
+        mainDrops[x] = Math.random() * mainCanvas.height; 
+      }
+    }
+    initMainDrops();
+    window.addEventListener('resize', initMainDrops);
+    
+    function drawMainMatrix() {
+      mainCtx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+      mainCtx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+      
+      mainCtx.fillStyle = '#0F0'; 
+      mainCtx.font = fSize + 'px monospace';
+
+      for (let i = 0; i < mainDrops.length; i++) {
+        const text = charsStr.charAt(Math.floor(Math.random() * charsStr.length));
+        mainCtx.fillText(text, i * fSize, mainDrops[i] * fSize);
+        
+        if (mainDrops[i] * fSize > mainCanvas.height && Math.random() > 0.98) {
+          mainDrops[i] = 0;
+        }
+        mainDrops[i]++;
+      }
+    }
+    
+    setInterval(drawMainMatrix, 50);
+
+    window.onload = function() {
+      typeSelectorDiv.style.display = 'block';
+      terminalDiv.style.display = 'none';
+    };
+  })();
+</script>
+</body>
+</html>
